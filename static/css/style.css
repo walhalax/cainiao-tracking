@@ -1,0 +1,191 @@
+/* 基本的なスタイル */
+body {
+    font-family: sans-serif;
+    margin: 20px;
+}
+
+h1 {
+    text-align: center;
+}
+
+.container {
+    display: flex;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.tracking-form, .tracking-info {
+    border: 1px solid #ccc;
+    padding: 20px;
+    border-radius: 5px;
+}
+
+.tracking-form {
+    flex-basis: 30%;
+}
+
+.tracking-info {
+    flex-basis: 70%;
+}
+
+.tracking-form label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.tracking-form input[type="text"] {
+    width: calc(100% - 22px); /* padding and border */
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+}
+
+.tracking-form button {
+    padding: 10px 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.tracking-form button:hover {
+    background-color: #0056b3;
+}
+
+/* .status-header { ... } */ /* 古いスタイルをコメントアウトまたは削除 */
+/* .progress-bar { ... } */ /* 古いスタイルをコメントアウトまたは削除 */
+/* .progress-bar .location { ... } */
+/* .progress-bar .connector { ... } */
+
+.info-header {
+    border: 1px solid #eee;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.info-row:last-child {
+    margin-bottom: 0;
+}
+
+.info-item {
+    flex-basis: 48%; /* Adjust as needed */
+}
+
+.info-item label {
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+.progress-container {
+    margin-bottom: 20px;
+}
+
+.progress-container h3 {
+    margin-bottom: 10px;
+    font-size: 1.1em;
+}
+
+.progress-bar {
+    display: flex;
+    align-items: flex-start; /* Align items to the top for location names */
+    justify-content: space-between;
+    padding: 15px;
+    border: 1px solid #eee;
+    border-radius: 5px;
+    position: relative; /* For absolute positioning of the line */
+}
+
+.progress-step {
+    text-align: center;
+    position: relative;
+    z-index: 1; /* Ensure steps are above the line */
+    flex: 1; /* Distribute space evenly */
+}
+
+.progress-step .location-name {
+    font-size: 0.9em;
+    margin-bottom: 5px;
+    display: block; /* Ensure it takes full width for centering */
+}
+
+.progress-step .dot {
+    width: 15px;
+    height: 15px;
+    background-color: #ccc; /* Default: inactive */
+    border-radius: 50%;
+    display: inline-block;
+    border: 2px solid white; /* To make it look cleaner */
+    box-shadow: 0 0 0 2px #ccc; /* Outer ring */
+}
+
+.progress-step.active .dot {
+    background-color: #007bff; /* Active color */
+    box-shadow: 0 0 0 2px #007bff;
+}
+.progress-step.completed .dot {
+    background-color: #28a745; /* Completed color */
+    box-shadow: 0 0 0 2px #28a745;
+}
+
+
+/* Line connecting the dots */
+.progress-bar::before {
+    content: '';
+    position: absolute;
+    top: 27px; /* Adjust based on dot size and location name height */
+    left: 10%; /* Start after the first dot's half */
+    right: 10%; /* End before the last dot's half */
+    height: 4px;
+    background-color: #eee; /* Line color */
+    z-index: 0; /* Behind the dots */
+}
+
+/* Progress line fill (controlled by JS potentially) */
+.progress-line-fill {
+     position: absolute;
+     top: 27px;
+     left: 10%;
+     height: 4px;
+     background-color: #28a745; /* Completed line color */
+     z-index: 0;
+     width: 0%; /* Initially no progress, updated by JS */
+     transition: width 0.5s ease-in-out;
+}
+
+/* ステータスに応じた色分け */
+.status-unshipped { color: gray; }
+.status-shipped { color: orange; }
+.status-intransit { color: blue; }
+.status-outfordelivery { color: purple; }
+.status-delivered { color: green; }
+.status-unknown { color: red; }
+
+#map {
+    height: 300px; /* Adjust height as needed */
+    background-color: #f0f0f0; /* Placeholder background */
+    border: 1px solid #ccc;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+}
+
+#history ul {
+    list-style: none;
+    padding: 0;
+}
+
+#history li {
+    border-bottom: 1px dashed #eee;
+    padding: 5px 0;
+}

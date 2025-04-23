@@ -1,0 +1,15 @@
+# [build]
+#   command = "pip install -r requirements.txt && npm install netlify-lambda && netlify-lambda build src"
+#   publish = "build"
+#   functions = "functions"
+
+# シンプルな静的サイトとしての設定
+[build]
+  publish = "." # プロジェクトルートを公開
+
+# 必要に応じてリダイレクトや環境変数を設定
+# APIへのリクエストを外部サーバー（ローカル開発サーバーなど）にプロキシすることも可能
+# [[redirects]]
+#  from = "/api/*"
+#  to = "http://localhost:5000/api/:splat" # ローカルでテストする場合の例
+#  status = 200

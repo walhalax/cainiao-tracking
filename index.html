@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cainiao Tracking</title>
+    <link rel="stylesheet" href="static/css/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
+</head>
+<body>
+    <h1>Cainiao Tracking</h1>
+    <div class="container">
+        <div class="tracking-form">
+            <h2>荷物情報を入力</h2>
+            <form id="add-tracking-form">
+                <label for="tracking-number">配送番号:</label>
+                <input type="text" id="tracking-number" name="tracking_number" required>
+                <label for="item-name">品名:</label>
+                <input type="text" id="item-name" name="item_name" required>
+                <button type="submit">登録</button>
+            </form>
+        </div>
+
+        <div class="tracking-info">
+            <h2>追跡情報</h2>
+            <div id="tracking-details">
+                <!-- 追跡情報がここに表示されます -->
+                <p>追跡番号を入力して登録してください。</p>
+            </div>
+            <div class="info-header">
+                <div class="info-row">
+                    <div class="info-item"><label>配送番号:</label> <span id="tracking-id-display"></span></div>
+                    <div class="info-item"><label>品名:</label> <span id="item-name-display"></span></div>
+                </div>
+                <div class="info-row">
+                    <div class="info-item"><label>ステータス:</label> <span id="status-display"></span></div>
+                    <div class="info-item"><label>発送日/経過日数:</label> <span id="date-display"></span></div>
+                </div>
+            </div>
+            <div class="progress-container">
+                <h3>進捗状況</h3>
+                <div id="progress-bar" class="progress-bar">
+                    <!-- 進捗バーがここに動的に生成されます -->
+                </div>
+            </div>
+            <div id="map">
+                <!-- 地図がここに表示されます -->
+                <p>地図表示エリア</p>
+            </div>
+            <div id="history">
+                <h3>進捗履歴</h3>
+                <ul id="history-list">
+                    <!-- 履歴がここに表示されます -->
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+    <script src="static/js/script.js"></script>
+</body>
+</html>
