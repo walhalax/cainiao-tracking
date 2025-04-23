@@ -3,6 +3,7 @@ import requests
 from flask import Flask, request, jsonify, send_from_directory
 from datetime import datetime
 from dotenv import load_dotenv
+import json # ★json import を追加
 
 load_dotenv() # .envファイルから環境変数を読み込む
 
@@ -17,8 +18,12 @@ tracking_item_names = {}
 # --- Helper Function ---
 def format_aftership_response(aftership_data, tracking_number):
     """AfterShip APIのレスポンスをフロントエンド用の形式に変換する"""
+    print(f"--- Formatting AfterShip data for {tracking_number} ---") # ★デバッグ出力追加
+    # print(f"Input data: {json.dumps(aftership_data, indent=2, ensure_ascii=False)}") # ★デバッグ出力追加 (必要なら)
+
     tracking_info = aftership_data.get('data', {}).get('tracking', {})
     if not tracking_info:
+        print(f"!!! No tracking_info found in AfterShip data for {tracking_number}") # ★デバッグ出力追加
         return None
 
     # ステータス判定 (AfterShipのtagを使用)
@@ -175,8 +180,20 @@ def get_tracking_info(tracking_number):
         response = requests.get(api_url, headers=headers)
         response.raise_for_status() # エラーチェック
 
-        aftership_data = response.json()
+        try:
+            aftership_data = response.json()
+            print(f"--- AfterShip Raw Response for {tracking_number} ---") # ★デバッグ出力追加
+            # import json # Already imported at the top
+            print(json.dumps(aftership_data, indent=2, ensure_ascii=False)) # ★デバッグ出力追加 (整形)
+            print(f"--- End of Raw Response ---")
+        except requests.exceptions.JSONDecodeError:
+            print(f"!!! Failed to decode JSON from AfterShip for {tracking_number}. Response text: {response.text}")
+            return jsonify({'error': 'Received invalid data from tracking provider'}), 502 # Bad Gateway
+
         formatted_data = format_aftership_response(aftership_data, tracking_number)
+        print(f"--- Formatted Data for {tracking_number} ---") # ★デバッグ出力追加
+        print(json.dumps(formatted_data, indent=2, ensure_ascii=False)) # ★デバッグ出力追加 (整形)
+        print(f"--- End of Formatted Data ---")
 
         if formatted_data:
             print(f"取得成功 (AfterShip): {tracking_number}")
