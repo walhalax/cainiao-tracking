@@ -3,13 +3,24 @@
 #   publish = "build"
 #   functions = "functions"
 
-# シンプルな静的サイトとしての設定
 [build]
-  publish = "." # プロジェクトルートを公開
+  # publish: フロントエンドのファイルがあるディレクトリ (今回はルート)
+  publish = "."
+  # functions: Netlify Functions のソースコードがあるディレクトリ
+  functions = "netlify/functions"
 
-# 必要に応じてリダイレクトや環境変数を設定
-# APIへのリクエストを外部サーバー（ローカル開発サーバーなど）にプロキシすることも可能
-# [[redirects]]
-#  from = "/api/*"
-#  to = "http://localhost:5000/api/:splat" # ローカルでテストする場合の例
-#  status = 200
+# Python Functions の依存関係を自動インストールする設定 (推奨)
+[functions]
+  included_files = ["netlify/functions/api/app.py"] # ハンドラー以外に必要なファイルがあれば指定
+  # Netlify は functions ディレクトリ内の requirements.txt を自動で検出してインストールを試みます
+  # node_bundler = "esbuild" # Node.js関数の場合
+
+# APIリクエストをFunctionにルーティングする設定
+[[redirects]]
+  # フロントエンドからの /api/ へのリクエストを...
+  from = "/api/*"
+  # ...対応する Netlify Function に書き換える
+  to = "/.netlify/functions/api/:splat"
+  # HTTPステータスコード 200 OK (書き換えを示す)
+  status = 200
+  # force = true # もし同名の静的ファイルがあっても強制的にリダイレクトする場合
