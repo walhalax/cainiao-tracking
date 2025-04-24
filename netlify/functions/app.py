@@ -4,6 +4,7 @@ from flask import Flask, request, jsonify, send_from_directory
 from datetime import datetime
 from dotenv import load_dotenv
 import json # ★json import を追加
+import serverless_wsgi # Netlify Functions 用に追加
 
 load_dotenv() # .envファイルから環境変数を読み込む
 
@@ -11,7 +12,7 @@ app = Flask(__name__)
 
 AFTERSHIP_API_KEY = os.getenv('AFTERSHIP_API_KEY')
 AFTERSHIP_API_BASE_URL = 'https://api.aftership.com/v4'
-ITEM_NAMES_FILE = 'item_names.json' # 品名保存用ファイル
+ITEM_NAMES_FILE = '/tmp/item_names.json' # 品名保存用ファイル (Netlify Functions用に /tmp を使用)
 
 # --- Item Name Persistence Functions ---
 def load_item_names():
@@ -248,8 +249,16 @@ def get_tracking_info(tracking_number):
          return jsonify({'error': 'An unexpected error occurred'}), 500
 
 
-if __name__ == '__main__':
-    # ポート番号を指定する場合 (例: 5001)
-    # port = int(os.environ.get('PORT', 5000))
-    # app.run(host='0.0.0.0', port=port, debug=False) # デプロイ時は debug=False
-    app.run(debug=True) # 開発時は debug=True
+# if __name__ == '__main__':
+#     # ローカル開発用 (Netlifyデプロイ時は不要)
+#     # port = int(os.environ.get('PORT', 5000))
+#     # app.run(host='0.0.0.0', port=port, debug=False)
+#     app.run(debug=True)
+
+# Netlify Functions ハンドラー
+def handler(event, context):
+    """
+    Netlify Functions のエントリーポイント。
+    serverless-wsgi を使って Flask アプリにリクエストを渡す。
+    """
+    return serverless_wsgi.handle(app, event, context)
