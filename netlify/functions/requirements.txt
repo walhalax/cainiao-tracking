@@ -1,0 +1,5 @@
+Flask
+requests
+python-dotenv
+serverless-wsgi
+requests # requestsがなければ追加
