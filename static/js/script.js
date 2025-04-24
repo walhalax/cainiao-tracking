@@ -29,11 +29,31 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || '登録に失敗しました');
+                let errorMsg = `登録に失敗しました (HTTP ${response.status})`;
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    try {
+                        const errorData = await response.json();
+                        errorMsg = errorData.error || errorMsg;
+                    } catch (jsonError) {
+                        console.error("Failed to parse JSON error response:", jsonError);
+                        // JSONパース失敗時はデフォルトメッセージを使用
+                    }
+                } else {
+                    // JSONでない場合はテキストとしてエラー内容を取得試行
+                    try {
+                        const errorText = await response.text();
+                        console.error("Non-JSON error response:", errorText);
+                        // 必要であれば errorText をメッセージに含める
+                        // errorMsg = `${errorMsg}: ${errorText.substring(0, 100)}`; // 例: 先頭100文字
+                    } catch (textError) {
+                         console.error("Failed to read text error response:", textError);
+                    }
+                }
+                throw new Error(errorMsg);
             }
 
-            const result = await response.json();
+            const result = await response.json(); // response.ok の場合は JSON を期待
             console.log('登録成功:', result);
 
             // 登録成功後、最新情報を取得して表示
@@ -51,10 +71,27 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch(`/api/track/${trackingNumber}`);
             if (!response.ok) {
-                 const errorData = await response.json();
-                throw new Error(errorData.error || '情報の取得に失敗しました');
+                let errorMsg = `情報の取得に失敗しました (HTTP ${response.status})`;
+                const contentType = response.headers.get('content-type');
+                 if (contentType && contentType.includes('application/json')) {
+                    try {
+                        const errorData = await response.json();
+                        errorMsg = errorData.error || errorMsg;
+                    } catch (jsonError) {
+                        console.error("Failed to parse JSON error response:", jsonError);
+                    }
+                } else {
+                     try {
+                        const errorText = await response.text();
+                        console.error("Non-JSON error response:", errorText);
+                        // errorMsg = `${errorMsg}: ${errorText.substring(0, 100)}`;
+                    } catch (textError) {
+                         console.error("Failed to read text error response:", textError);
+                    }
+                }
+                throw new Error(errorMsg);
             }
-            const data = await response.json();
+            const data = await response.json(); // response.ok の場合は JSON を期待
             console.log('取得成功:', data);
             displayTrackingInfo(data);
         } catch (error) {
