@@ -13,7 +13,7 @@
 
 # Python Functions の依存関係を自動インストールする設定 (推奨)
 [functions]
-  included_files = ["netlify/functions/app.py"] # ハンドラー以外に必要なファイルがあれば指定
+  # included_files = ["netlify/functions/app.py"] # ハンドラーファイル自体は含めない (自動検出させる)
   # Netlify は functions ディレクトリ内の requirements.txt を自動で検出してインストールを試みます
   # node_bundler = "esbuild" # Node.js関数の場合
 
