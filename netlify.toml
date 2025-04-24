@@ -22,7 +22,7 @@
   # フロントエンドからの /api/ へのリクエストを...
   from = "/api/*"
   # ...対応する Netlify Function に書き換える
-  to = "/.netlify/functions/app/:splat" # 関数ファイル名を app.py に合わせる
+  to = "/.netlify/functions/api/:splat" # 関数ファイル名を api.py に合わせる
   # HTTPステータスコード 200 OK (書き換えを示す)
   status = 200
   # force = true # もし同名の静的ファイルがあっても強制的にリダイレクトする場合
