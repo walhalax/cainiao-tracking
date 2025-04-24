@@ -11,9 +11,31 @@ app = Flask(__name__)
 
 AFTERSHIP_API_KEY = os.getenv('AFTERSHIP_API_KEY')
 AFTERSHIP_API_BASE_URL = 'https://api.aftership.com/v4'
+ITEM_NAMES_FILE = 'item_names.json' # 品名保存用ファイル
 
-# item_name を保持するための簡単なローカルストア
-tracking_item_names = {}
+# --- Item Name Persistence Functions ---
+def load_item_names():
+    """JSONファイルから品名データを読み込む"""
+    try:
+        if os.path.exists(ITEM_NAMES_FILE):
+            with open(ITEM_NAMES_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        else:
+            return {}
+    except (IOError, json.JSONDecodeError) as e:
+        print(f"Error loading item names from {ITEM_NAMES_FILE}: {e}")
+        return {} # エラー時は空の辞書を返す
+
+def save_item_names():
+    """品名データをJSONファイルに保存する"""
+    try:
+        with open(ITEM_NAMES_FILE, 'w', encoding='utf-8') as f:
+            json.dump(tracking_item_names, f, ensure_ascii=False, indent=4)
+    except IOError as e:
+        print(f"Error saving item names to {ITEM_NAMES_FILE}: {e}")
+
+# item_name を保持するためのローカルストア (ファイルから読み込み)
+tracking_item_names = load_item_names()
 
 # --- Helper Function ---
 def format_aftership_response(aftership_data, tracking_number):
@@ -117,6 +139,7 @@ def add_tracking_item():
     # ローカルに品名を保存 (追跡番号をキーとする)
     if item_name:
         tracking_item_names[tracking_number] = item_name
+        save_item_names() # 品名をファイルに保存
 
     headers = {
         'aftership-api-key': AFTERSHIP_API_KEY,
