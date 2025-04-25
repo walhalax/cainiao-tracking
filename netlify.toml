@@ -11,11 +11,10 @@
   # command: ビルド時に実行するコマンド (依存関係のインストール)
   command = "pip install -r netlify/functions/requirements.txt"
 
-# Python Functions の依存関係を自動インストールする設定 (推奨) - 一旦コメントアウトして自動検出を試す
-# [functions]
-#   # included_files = ["netlify/functions/app.py"] # ハンドラーファイル自体は含めない (自動検出させる)
-#   # Netlify は functions ディレクトリ内の requirements.txt を自動で検出してインストールを試みます
-#   # node_bundler = "esbuild" # Node.js関数の場合
+# Python Functions の設定 - ディレクトリを明示的に指定
+[functions]
+  directory = "netlify/functions"
+  # included_files は指定しない
 
 # APIリクエストをFunctionにルーティングする設定
 [[redirects]]
