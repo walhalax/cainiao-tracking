@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tk-auto-dl Controller</title>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; padding: 20px; }
+        .container { max-width: 960px; margin: auto; }
+        .controls button { padding: 10px 15px; margin-right: 10px; cursor: pointer; }
+        .status-section, .tasks-section { margin-top: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .progress-bar-container { width: 100%; background-color: #e0e0e0; border-radius: 4px; overflow: hidden; }
+        .progress-bar { height: 18px; background-color: #4CAF50; width: 0%; text-align: center; color: white; line-height: 18px; font-size: 12px; transition: width 0.3s ease; }
+        .status-text { font-weight: bold; margin-bottom: 4px; } /* ステータステキスト用のスタイル */
+        .status-pending_download .status-text { color: #888; }
+        .status-downloading .status-text { color: #007bff; }
+        .status-completed .status-text, .status-skipped .status-text { color: #28a745; } /* skipped_upload を削除 */
+        .status-failed_download .status-text, .status-error .status-text { color: #dc3545; } /* failed_upload を削除 */
+        .status-paused .status-text { color: #ffc107; }
+        #error-message { color: red; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>tk-auto-dl Controller</h1>
+
+        <div class="controls">
+            <button id="startButton">Auto Start</button>
+            <button id="stopButton" disabled>Stop</button>
+
+            <button id="resetFailedButton">Reset Failed Tasks</button>
+            <!-- データベース初期化ボタンを追加 -->
+            <button id="resetDatabaseButton" style="background-color: #f44336; color: white;">Reset Database</button>
+        </div>
+
+        <div class="status-section">
+            <h2>Overall Status</h2>
+            <p><strong>Background Process:</strong> <span id="bgStatus">Idle</span></p>
+            <p><strong>Download Queue:</strong> <span id="dlQueueCount">0</span></p>
+            <!-- <p><strong>Upload Queue:</strong> <span id="ulQueueCount">0</span></p> アップロード機能削除のため削除 -->
+            <p><strong>Processed (Completed/Skipped):</strong> <span id="processedCount">0</span></p>
+            <p id="errorMessage" style="color: red;"></p>
+        </div>
+
+        <div class="tasks-section">
+            <h2>Task Status</h2>
+            <table id="taskTable">
+                <thead>
+                    <tr>
+                        <th>FC2 ID</th>
+                        <th>Title</th>
+                        <th>Status / Progress</th>
+                        <th>Error</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Task rows will be inserted here by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const bgStatusEl = document.getElementById('bgStatus');
+        const dlQueueCountEl = document.getElementById('dlQueueCount');
+        // const ulQueueCountEl = document.getElementById('ulQueueCount'); // アップロード機能削除のため削除
+        const processedCountEl = document.getElementById('processedCount');
+        const taskTableBody = document.querySelector('#taskTable tbody');
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const resetFailedButton = document.getElementById('resetFailedButton');
+        const errorMessageEl = document.getElementById('errorMessage');
+        // データベース初期化ボタンの要素を取得
+        const resetDatabaseButton = document.getElementById('resetDatabaseButton');
+
+        let eventSource = null; // EventSource オブジェクトを保持する変数
+
+        // --- API Call Functions ---
+        async function postControlAction(endpoint) {
+             errorMessageEl.textContent = ''; // Clear previous errors
+            try {
+                const response = await fetch(endpoint, { method: 'POST' });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || `HTTP error! status: ${response.status}`);
+                }
+                console.log(`${endpoint} action successful:`, data.message);
+                // SSE が状態更新を自動的に反映するため、ここでは UI 更新を明示的に呼び出さない
+                // fetchStatus(); // 削除
+            } catch (error) {
+                console.error(`Error calling ${endpoint}:`, error);
+                errorMessageEl.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        // --- UI Update Function ---
+        function updateUI(data) {
+            console.log("Received data for updateUI:", data); // 追加: 受信データ全体をログ出力
+
+            // Update overall status
+            bgStatusEl.textContent = data.background_running ? (data.stop_requested ? 'Stopping...' : 'Running') : 'Idle';
+            dlQueueCountEl.textContent = data.download_queue_count;
+            // ulQueueCountEl.textContent = data.upload_queue_count; // アップロード機能削除のため削除
+            processedCountEl.textContent = data.processed_count; // processed_ids_count を processed_count に修正
+
+            // Update button states
+            startButton.disabled = data.background_running;
+            stopButton.disabled = !data.background_running || data.stop_requested;
+            resetFailedButton.disabled = data.background_running; // 処理中はリセットボタンを無効化
+            // データベース初期化ボタンも処理中は無効化
+            resetDatabaseButton.disabled = data.background_running;
+
+
+            // Update task table
+            taskTableBody.innerHTML = ''; // Clear existing rows
+            const sortedTaskIds = Object.keys(data.task_status).sort((a, b) => {
+                 // Sort by last_updated in descending order (latest first)
+                 const timeA = new Date(data.task_status[a]?.last_updated || 0).getTime();
+                 const timeB = new Date(data.task_status[b]?.last_updated || 0).getTime();
+                 return timeB - timeA; // Descending order
+            });
+
+            // Limit displayed tasks (e.g., last 100) to avoid performance issues
+            const displayLimit = 100;
+            const tasksToDisplay = sortedTaskIds.slice(0, displayLimit); // slice(-displayLimit) から slice(0, displayLimit) に変更
+
+            if (tasksToDisplay.length === 0) {
+                 const row = taskTableBody.insertRow();
+                 const cell = row.insertCell();
+                 cell.colSpan = 4; // 列数を変更
+                 cell.textContent = 'No tasks to display.';
+                 cell.style.textAlign = 'center';
+
+            } else {
+                tasksToDisplay.forEach(taskId => {
+                    const task = data.task_status[taskId];
+                    console.log(`Processing task ${taskId}:`, task); // 追加: 各タスクデータをログ出力
+                    const row = taskTableBody.insertRow();
+
+                    row.insertCell().textContent = taskId;
+                    row.insertCell().textContent = task.title || 'N/A';
+
+                    // StatusとProgressを同じセルに表示
+                    const statusProgressCell = row.insertCell();
+                    statusProgressCell.className = `status-${task.status}`; // ステータスに応じたクラスをセルに適用
+
+                    const statusText = task.status || 'N/A';
+                    statusProgressCell.innerHTML = `<div class="status-text">${statusText}</div>`; // ステータステキスト
+
+                    // Progressバーとパーセンテージ表示 (ダウンロードのみ)
+                    let progress = 0;
+                    let progressType = ''; // 'Download'
+
+                    if (task.status === 'downloading' || task.status === 'resuming_download') {
+                        progress = task.download_progress || 0;
+                        progressType = 'Download';
+                    } else if (task.status === 'completed') { // ダウンロード完了のみ
+                         progress = 100;
+                         progressType = 'Download';
+                    }
+
+
+                    if (progressType) {
+                         // Ensure progress is a number and within 0-100
+                        const clampedProgress = Math.max(0, Math.min(100, parseFloat(progress) || 0));
+                        statusProgressCell.innerHTML += `
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" style="width: ${clampedProgress}%;">${progressType}: ${clampedProgress.toFixed(1)}%</div>
+                            </div>
+                        `;
+                    }
+
+
+                    const errorCell = row.insertCell();
+                    errorCell.textContent = task.error_message || '';
+                    errorCell.style.color = 'red';
+                    errorCell.style.fontSize = '0.9em';
+                });
+            }
+        }
+
+        // --- Event Listeners ---
+        startButton.addEventListener('click', () => postControlAction('/start'));
+        stopButton.addEventListener('click', () => postControlAction('/stop'));
+        resetFailedButton.addEventListener('click', () => postControlAction('/reset_failed'));
+        // データベース初期化ボタンのイベントリスナーを追加
+        resetDatabaseButton.addEventListener('click', () => {
+            if (confirm('本当にタスクステータスを完全に初期化しますか？この操作は元に戻せません。')) {
+                postControlAction('/reset_database');
+            }
+        });
+
+
+        // --- SSE Setup ---
+        function setupSSE() {
+            if (eventSource) {
+                eventSource.close(); // 既存の接続があれば閉じる
+            }
+
+            // SSE エンドポイントに接続
+            eventSource = new EventSource('/status-stream');
+
+            eventSource.onmessage = function(event) {
+                // サーバーからデータを受信したら UI を更新
+                const data = JSON.parse(event.data);
+                console.log("SSE data received:", data); // 受信データをログ出力
+                updateUI(data);
+            };
+
+            eventSource.onerror = function(err) {
+                console.error('EventSource failed:', err);
+                errorMessageEl.textContent = `SSE connection failed. Attempting to reconnect...`;
+                eventSource.close(); // エラー発生時は接続を閉じる
+                // 再接続を試みる (簡単な例、実際には指数バックオフなどを考慮)
+                setTimeout(setupSSE, 3000); // 3秒後に再接続を試みる
+            };
+
+            eventSource.onopen = function() {
+                 console.log("SSE connection opened.");
+                 errorMessageEl.textContent = ''; // 接続成功時にエラーメッセージをクリア
+            };
+        }
+
+
+        // --- Initialization ---
+        // ページロード時に SSE 接続を開始
+        setupSSE();
+
+        // 初回ロード時のステータス表示のために一度だけフェッチ (SSE が最初のデータを送るまでの間に表示するため)
+        // または、SSE エンドポイントが接続時に最新の状態を一度送るようにバックエンドを修正する
+        // 現在のバックエンド実装は状態更新時のみ送るため、初回表示用に一度フェッチが必要
+        // fetchStatus(); // 削除 - SSE が最初のデータを送るようにバックエンドを修正済みと仮定
+
+    </script>
+</body>
+</html>
