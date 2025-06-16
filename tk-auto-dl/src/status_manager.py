@@ -124,54 +124,6 @@ class StatusManager:
                     logging.debug(f"タスク {fc2_id} は既にダウンロード待ちまたはダウンロード中です。スキップ。")
                     return
 
-            # ローカルファイルが既に存在するかチェック
-            # ファイル名を推測 (download_module のロジックに合わせる)
-            title = video_info.get('title', fc2_id)
-            safe_filename = "".join(c if c.isalnum() or c in (' ', '.', '_', '-') else '_' for c in title)
-            if not safe_filename.lower().endswith('.mp4'):
-                 safe_filename += '.mp4'
-            local_path = os.path.join("downloads", safe_filename)
-
-            if os.path.exists(local_path) and os.path.getsize(local_path) > 0:
-                logging.info(f"ローカルに既存ファイル '{local_path}' を検出。ダウンロードをスキップし、完了としてマークします。") # ログ維持
-
-                # タスクが task_status に存在しない場合は新しく作成
-                if fc2_id not in self.task_status:
-                     self.task_status[fc2_id] = {
-                         "title": title,
-                         "url": video_info.get('url'), # 元のURLは保持
-                         "added_date": video_info.get('added_date_str'),
-                         "rating": video_info.get('rating'),
-                         # "upload_progress": 0, # アップロード機能削除のため削除
-                         "error_message": None,
-                     }
-
-                # タスクの状態を completed に設定し、ローカルパスとダウンロード進捗を更新
-                self.task_status[fc2_id].update({
-                    "status": "completed", # ダウンロード完了としてマーク
-                    "download_progress": 100.0,
-                    "local_path": local_path, # 既存のローカルパスを設定
-                    "last_updated": datetime.now().isoformat()
-                })
-
-                # processed_ids に含まれている場合は削除 (再度処理させるため)
-                if fc2_id in self.processed_ids:
-                    self.processed_ids.remove(fc2_id)
-                    logging.debug(f"タスク {fc2_id} をprocessed_idsから削除しました。") # デバッグログ追加
-
-                # アップロードキューへの追加は不要になったため削除
-                # if fc2_id not in self.upload_queue:
-                #     self.upload_queue.append(fc2_id)
-                #     logging.info(f"アップロードキューに追加: {fc2_id} - {title}") # ログ維持
-                # else:
-                #     logging.debug(f"タスク {fc2_id} は既にアップロードキューに存在します。") # デバッグログ維持
-
-                await self._save_status() # 状態を保存
-                # アップロードキューへの追加に関するログを修正
-                logging.debug(f"タスク {fc2_id} をダウンロード完了としてマークし、状態を保存しました。") # デバッグログ追加
-                self._status_updated_event.set() # 状態変更時にイベントをセット
-                return # 処理終了
-
             # ローカルファイルが存在しない、またはサイズが0の場合、ダウンロードタスクとして追加/更新
             # タスクが task_status に存在しない、または状態が pending_download/downloading でない場合
             # ここは既存タスクチェックでカバーされるため、条件を簡略化
