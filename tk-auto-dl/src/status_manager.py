@@ -130,7 +130,7 @@ class StatusManager:
             logging.info(f"タスク {fc2_id} をダウンロードキューに追加/更新します。") # ログ維持
             self.task_status[fc2_id] = {
                 "status": "pending_download",
-                "title": title,
+                "title": video_info.get('title'),  # 修正不要 - 既にvideo_infoから取得
                 "url": video_info.get('url'),
                 "added_date": video_info.get('added_date_str'),
                 "rating": video_info.get('rating'),
@@ -148,7 +148,7 @@ class StatusManager:
             # ダウンロードキューに存在しない場合のみ追加
             if fc2_id not in self.download_queue:
                 self.download_queue.append(fc2_id)
-                logging.info(f"ダウンロードキューに追加: {fc2_id} - {title}") # ログ維持
+                logging.info(f"ダウンロードキューに追加: {fc2_id} - {video_info.get('title')}") # video_infoから直接取得
             else:
                 logging.debug(f"タスク {fc2_id} は既にダウンロードキューに存在します。スキップ。") # デバッグログ維持
 
