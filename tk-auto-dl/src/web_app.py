@@ -153,52 +153,6 @@ async def download_worker(fc2_id: str, task_info: dict):
             await status_manager.update_download_progress(fc2_id, {"status": "error", "message": f"予期せぬエラー: {e}"})
 
 
-# async def upload_worker(fc2_id: str, task_info: dict): # アップロード機能削除のため削除
-#     """アップロードタスクを実行するワーカー"""
-#     async with upload_semaphore:
-#         if stop_requested_flag:
-#             logging.info(f"停止リクエスト検出のため、アップロードをスキップ: {fc2_id}")
-#             return
-#
-#         logging.info(f"アップロードワーカー開始: {fc2_id}")
-#         local_path = task_info.get("local_path")
-#         title = task_info.get("title")
-#
-#         if not local_path or not title:
-#             logging.error(f"アップロード情報不足 (ローカルパスまたはタイトル): {fc2_id}")
-#             await status_manager.update_upload_progress(fc2_id, {"status": "error", "message": "アップロード情報不足"})
-#             return
-#         if not os.path.exists(local_path):
-#              logging.error(f"アップロード対象のローカルファイルが見つかりません: {local_path}")
-#              await status_manager.update_upload_progress(fc2_id, {"status": "error", "message": "ローカルファイル不明"})
-#              return
-#
-#         async def progress_callback(progress_data: Dict[str, Any]):
-#             await status_manager.update_upload_progress(fc2_id, progress_data)
-#
-#         try:
-#             success = await upload_to_server(
-#                 local_path,
-#                 title,
-#                 progress_callback=progress_callback
-#             )
-#
-#             if success:
-#                 logging.info(f"アップロードワーカー完了 (成功またはスキップ): {fc2_id}")
-#                 # アップロード成功後、StatusManagerにローカルファイルの削除を依頼
-#                 await status_manager.delete_local_file(fc2_id)
-#             else:
-#                 # upload_to_server が False を返した場合 (progress_callback でエラーになっていない場合)
-#                 logging.error(f"アップロードワーカー失敗 (upload_to_server から False): {fc2_id}")
-#                 task_status = await status_manager.get_task_status(fc2_id) # status_manager.py で実装済み
-#                 if task_status and not task_status.get('status', '').startswith('failed'):
-#                      await status_manager.update_upload_progress(fc2_id, {"status": "error", "message": "アップロード処理失敗"})
-#
-#         except Exception as e:
-#             logging.error(f"アップロードワーカー実行中に予期せぬエラー: {fc2_id} - {e}", exc_info=True)
-#             await status_manager.update_upload_progress(fc2_id, {"status": "error", "message": f"予期せぬエラー: {e}"})
-#
-#
 async def main_background_loop():
     """メインのバックグラウンド処理ループ"""
     global background_tasks_running, stop_requested_flag
@@ -211,7 +165,7 @@ async def main_background_loop():
     try:
         # スタート時にダウンロードディレクトリをチェックし、レジューム可能なタスクを探す
         # Auto Start 時にリセットではなくレジュームを行うため、reset_state_async() は削除
-        # await status_manager.check_and_resume_downloads("downloads") # start エンドポイントに移動
+        # await status_manager.check_and_resume_downloads("downloads") # 削除
 
         # 1. スクレイピング実行
         logging.info("スクレイピングを開始します...")
@@ -378,9 +332,6 @@ async def main_background_loop():
              # StatusManagerを使って状態を更新
              if task_type == "download":
                  await status_manager.update_download_progress(fc2_id, {"status": "paused", "message": "中断されました"})
-             # elif task_type == "upload": # アップロード機能削除のため削除
-             #     await status_manager.update_upload_progress(fc2_id, {"status": "paused", "message": "中断されました"})
-
 
     except Exception as e:
         logging.error(f"メインバックグラウンドループで予期せぬエラーが発生しました: {e}", exc_info=True)
@@ -492,17 +443,38 @@ async def start_processing(background_tasks: BackgroundTasks):
     # await status_manager.reset_state_async() # 削除済み
 
     # ダウンロードディレクトリをチェックし、既存ファイルに基づいてタスク状態を更新
-    # await status_manager.check_and_resume_downloads("downloads") # ここを修正
-    download_dir = get_download_directory() # download_module からディレクトリパスを取得
-    await status_manager.check_and_resume_downloads(download_dir) # 取得したパスを使用
+    # await status_manager.check_and_resume_downloads("downloads") # 削除
+    # download_dir = get_download_directory() # download_module からディレクトリパスを取得
+    # await status_manager.check_and_resume_downloads(download_dir) # 削除
+
+    # 本日までのエラー状態のタスクを完了としてマーク
+    await status_manager.mark_errors_as_completed()
+
+    # 失敗したタスクをリセットしてダウンロードキューに戻す
+    await status_manager.reset_failed_tasks()
 
     # 中断されたタスクをレジュームキューに戻す
     await status_manager.resume_paused_tasks()
 
-    main_task_handle = asyncio.create_task(main_background_loop(), name="main_loop")
-    return JSONResponse(content={"message": "バックグラウンド処理を開始しました。"})
+    # メインのバックグラウンドループを開始
+    if not main_task_handle or main_task_handle.done():
+        logging.info("メインバックグラウンドタスクを開始します。")
+        main_task_handle = asyncio.create_task(main_background_loop(), name="main_background_loop")
+    else:
+        logging.info("メインバックグラウンドタスクは既に実行中です。")
+
+    return {"message": "バックグラウンド処理を開始しました。"}
+
 
 @app.post("/stop")
 async def stop_processing():
-    """バックグラウンド処理の中断をリクエストする"""
-    global stop_requested_flag, main_task_handle # main_task_handle を追加
+    """バックグラウンド処理を停止する"""
+    global stop_requested_flag, background_tasks_running
+    if not background_tasks_running:
+        raise HTTPException(status_code=400, detail="処理は実行されていません。")
+
+    logging.info("バックグラウンド処理の停止リクエストを受け付けました。")
+    stop_requested_flag = True
+    await status_manager.request_stop() # StatusManagerにも停止を通知
+    logging.info("停止リクエストを処理しました。")
+    return {"message": "バックグラウンド処理の停止をリクエストしました。"}
