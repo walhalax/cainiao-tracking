@@ -21,11 +21,12 @@ fi
 # uvicornでFastAPIアプリケーションを起動
 # --reload オプションは開発中に便利ですが、本番環境では不要な場合があります
 echo "FastAPIアプリケーションを起動します..."
-"$VENV_PATH/bin/uvicorn" src.web_app:app --reload --host 0.0.0.0 --port 8000
+export PYTHONPATH=$PYTHONPATH:.
+"$VENV_PATH/bin/uvicorn" src.web_app:app --reload --host 0.0.0.0 --port 8004 --app-dir "$SCRIPT_DIR"
 sleep 3
 
 echo "フロントエンドを開きます..."
-open http://127.0.0.1:8000
+open http://127.0.0.1:8004
 
 # 仮想環境を無効化 (スクリプト終了時)
 # deactivate # スクリプトが終了すると自動的に無効化されるため不要
